@@ -20,6 +20,7 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
   const { syncRoles } = useRoleSync();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   // Convert path to tab
   const pathToTab = (path: string) => {
@@ -34,63 +35,78 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
     console.log('Path changed, updating active tab:', {
       path: location.pathname,
       newTab,
-      canAccess: canAccessTab(newTab)
+      canAccess: canAccessTab(newTab),
+      userRole
     });
     
     if (!canAccessTab(newTab)) {
       console.log('User cannot access tab:', newTab);
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to access this section.",
-        variant: "destructive",
-      });
-      navigate('/dashboard');
+      if (hasRole('member')) {
+        navigate('/dashboard');
+      }
       return;
     }
     
     setActiveTab(newTab);
-  }, [location.pathname, canAccessTab, navigate, toast]);
+  }, [location.pathname, canAccessTab, navigate, hasRole, userRole]);
 
   useEffect(() => {
+    let mounted = true;
     console.log('ProtectedRoutes mounted, session:', !!session);
+
+    const checkAuth = async () => {
+      try {
+        if (!session) {
+          console.log('No session, redirecting to login');
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        if (mounted) {
+          await syncRoles();
+          setIsAuthChecking(false);
+          setIsInitialLoad(false);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        if (mounted) {
+          setIsAuthChecking(false);
+          setIsInitialLoad(false);
+        }
+      }
+    };
+
+    checkAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      console.log('Auth state change in protected routes:', event);
+      if (!mounted) return;
+
+      console.log('Auth state change in protected routes:', {
+        event,
+        hasSession: !!currentSession,
+        userRole
+      });
       
       if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !currentSession)) {
         console.log('User signed out or token refresh failed, redirecting to login');
         navigate('/login', { replace: true });
-      } else if (event === 'SIGNED_IN' && currentSession) {
-        console.log('User signed in, checking role access');
-        if (!hasRole('member')) {
-          toast({
-            title: "Access Denied",
-            description: "You don't have permission to access this area.",
-            variant: "destructive",
-          });
-          navigate('/login', { replace: true });
-        }
+        return;
       }
     });
 
-    // Set initial load to false after a short delay
-    const timer = setTimeout(() => {
-      setIsInitialLoad(false);
-    }, 1000);
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
-      clearTimeout(timer);
     };
-  }, [navigate, hasRole, toast]);
+  }, [navigate, session, syncRoles, userRole]);
 
-  // Only show loading during initial role check and when roles are actually loading
-  const showLoading = (isInitialLoad && roleLoading) || (!session && roleLoading);
-  
-  if (showLoading) {
+  // Only show loading during initial auth check
+  if (isAuthChecking || (isInitialLoad && roleLoading)) {
     console.log('Showing loading state:', {
       isInitialLoad,
       roleLoading,
-      hasSession: !!session
+      hasSession: !!session,
+      isAuthChecking
     });
     return (
       <div className="flex items-center justify-center min-h-screen bg-dashboard-dark">
@@ -109,7 +125,8 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
     console.log('Tab change requested:', {
       currentTab: activeTab,
       newTab: tab,
-      canAccess: canAccessTab(tab)
+      canAccess: canAccessTab(tab),
+      userRole
     });
 
     if (!canAccessTab(tab)) {

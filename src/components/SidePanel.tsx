@@ -14,7 +14,7 @@ interface SidePanelProps {
 
 const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
   const { session, handleSignOut } = useAuthSession();
-  const { userRole, userRoles, roleLoading, hasRole, canAccessTab } = useRoleAccess();
+  const { userRole, userRoles, roleLoading, hasRole } = useRoleAccess();
   const { toast } = useToast();
 
   const prevUserRoleRef = useRef(userRole);
@@ -29,14 +29,21 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
       return;
     }
 
-    console.log('SidePanel session state:', {
-      hasSession,
-      userRole,
-      userRoles,
-      currentTab,
-      timestamp: new Date().toISOString()
-    });
+    if (prevUserRoleRef.current !== userRole || 
+        prevUserRolesRef.current !== userRoles || 
+        prevTabRef.current !== currentTab) {
+      console.log('SidePanel session state:', {
+        hasSession,
+        userRole,
+        userRoles,
+        currentTab,
+        timestamp: new Date().toISOString()
+      });
 
+      prevUserRoleRef.current = userRole;
+      prevUserRolesRef.current = userRoles;
+      prevTabRef.current = currentTab;
+    }
   }, [hasSession, userRole, userRoles, currentTab]);
 
   const navigationItems = useMemo(() => [
@@ -63,18 +70,17 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
   ], []);
 
   const visibleNavigationItems = useMemo(() => {
-    console.log('Calculating visible navigation items', {
-      hasSession,
-      roleLoading,
-      userRoles,
-      timestamp: new Date().toISOString()
-    });
+    if (!hasSession || roleLoading) {
+      console.log('Session or roles not ready:', {
+        hasSession,
+        roleLoading,
+        userRoles
+      });
+      return navigationItems.filter(item => item.alwaysShow);
+    }
 
-    if (!hasSession) return navigationItems.filter(item => item.alwaysShow);
-    
     return navigationItems.filter(item => {
       if (item.alwaysShow) return true;
-      if (roleLoading) return false;
       if (!item.requiresRole) return true;
       return item.requiresRole.some(role => userRoles?.includes(role));
     });
@@ -84,13 +90,12 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
     console.log('Tab change requested:', {
       currentTab,
       newTab: tab,
-      canAccess: canAccessTab(tab),
       userRoles,
       timestamp: new Date().toISOString()
     });
 
     onTabChange(tab);
-  }, [onTabChange, canAccessTab, userRoles, currentTab]);
+  }, [onTabChange, userRoles, currentTab]);
 
   const handleLogoutClick = useCallback(async () => {
     console.log('Logout initiated');
@@ -105,21 +110,6 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
       });
     }
   }, [handleSignOut, toast]);
-
-  const roleStatusText = useMemo(() => {
-    if (!hasSession) return 'Not authenticated';
-    if (roleLoading) return 'Loading access...';
-    return userRole ? `Role: ${userRole}` : 'Access restricted';
-  }, [roleLoading, userRole, hasSession]);
-
-  console.log('SidePanel render', { 
-    userRole, 
-    roleLoading, 
-    hasSession,
-    visibleTabs: visibleNavigationItems.map(item => item.tab),
-    currentTab,
-    timestamp: new Date().toISOString()
-  });
 
   return (
     <div className="flex flex-col h-full bg-dashboard-card border-r border-dashboard-cardBorder">
