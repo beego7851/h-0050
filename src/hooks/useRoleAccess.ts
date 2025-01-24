@@ -101,7 +101,7 @@ export const useRoleAccess = () => {
     permissions,
     hasRole: (role: UserRole) => hasRole(userRoles, role),
     hasAnyRole: (roles: UserRole[]) => hasAnyRole(userRoles, roles),
-    canAccessTab: (tab: string) => canAccessTab(userRoles, tab),
+    canAccessTab: (tab: string) => canAccessTab(tab, userRoles),
     refetchRoles: refetch
   };
 };
