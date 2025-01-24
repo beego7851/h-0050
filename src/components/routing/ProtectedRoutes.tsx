@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { useNavigate, useLocation, Outlet, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +7,7 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useRoleSync } from "@/hooks/useRoleSync";
 import { Loader2 } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
+import { canAccessTab, getDefaultRoute } from "@/utils/roleUtils";
 
 interface ProtectedRoutesProps {
   session: Session | null;
@@ -16,7 +17,7 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { roleLoading, hasRole, userRole, canAccessTab } = useRoleAccess();
+  const { roleLoading, userRole, userRoles, canAccessTab } = useRoleAccess();
   const { syncRoles } = useRoleSync();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -35,20 +36,24 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
     console.log('Path changed, updating active tab:', {
       path: location.pathname,
       newTab,
-      canAccess: canAccessTab(newTab),
+      canAccess: canAccessTab(userRoles, newTab),
       userRole
     });
     
-    if (!canAccessTab(newTab)) {
+    if (!canAccessTab(userRoles, newTab)) {
       console.log('User cannot access tab:', newTab);
-      if (hasRole('member')) {
-        navigate('/dashboard');
-      }
+      const defaultRoute = getDefaultRoute(userRoles);
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to access this section.",
+        variant: "destructive",
+      });
+      navigate(defaultRoute);
       return;
     }
     
     setActiveTab(newTab);
-  }, [location.pathname, canAccessTab, navigate, hasRole, userRole]);
+  }, [location.pathname, canAccessTab, navigate, userRoles, userRole, toast]);
 
   useEffect(() => {
     let mounted = true;
@@ -63,7 +68,6 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
         }
 
         if (mounted) {
-          // Pass just the user ID to syncRoles
           await syncRoles(session.user.id);
           setIsAuthChecking(false);
           setIsInitialLoad(false);
@@ -73,6 +77,11 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
         if (mounted) {
           setIsAuthChecking(false);
           setIsInitialLoad(false);
+          toast({
+            title: "Authentication Error",
+            description: "There was a problem verifying your access. Please try again.",
+            variant: "destructive",
+          });
         }
       }
     };
@@ -99,9 +108,9 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, session, syncRoles, userRole]);
+  }, [navigate, session, syncRoles, userRole, toast]);
 
-  // Only show loading during initial auth check
+  // Show loading state during initial auth check
   if (isAuthChecking || (isInitialLoad && roleLoading)) {
     console.log('Showing loading state:', {
       isInitialLoad,
@@ -116,41 +125,37 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
     );
   }
 
+  // If no session, redirect to login
   if (!session) {
     console.log('No session in ProtectedRoutes, redirecting to login');
-    navigate('/login', { replace: true });
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
-  const handleTabChange = (tab: string) => {
-    console.log('Tab change requested:', {
-      currentTab: activeTab,
-      newTab: tab,
-      canAccess: canAccessTab(tab),
-      userRole
-    });
-
-    if (!canAccessTab(tab)) {
-      console.log('Access denied to tab:', tab);
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to access this section.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const path = tab === 'dashboard' ? '/' : `/${tab}`;
-    navigate(path);
-    setActiveTab(tab);
-  };
+  // If user has no access to current route, redirect to default route
+  const currentTab = pathToTab(location.pathname);
+  if (!canAccessTab(userRoles, currentTab)) {
+    const defaultRoute = getDefaultRoute(userRoles);
+    return <Navigate to={defaultRoute} replace />;
+  }
 
   return (
     <MainLayout
       activeTab={activeTab}
       isSidebarOpen={isSidebarOpen}
       onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-      onTabChange={handleTabChange}
+      onTabChange={(tab) => {
+        if (!canAccessTab(userRoles, tab)) {
+          toast({
+            title: "Access Denied",
+            description: "You don't have permission to access this section.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const path = tab === 'dashboard' ? '/' : `/${tab}`;
+        navigate(path);
+        setActiveTab(tab);
+      }}
     >
       <Outlet />
     </MainLayout>

@@ -23,27 +23,33 @@ export const hasAnyRole = (userRoles: UserRole[] | null, roles: UserRole[]): boo
 export const canAccessTab = (userRoles: UserRole[] | null, tab: string): boolean => {
   if (!userRoles) return false;
 
-  const result = (() => {
-    switch (tab) {
-      case 'dashboard':
-        return true;
-      case 'users':
-        return hasRole(userRoles, 'admin') || hasRole(userRoles, 'collector');
-      case 'financials':
-        return hasRole(userRoles, 'admin') || hasRole(userRoles, 'collector');
-      case 'system':
-        return hasRole(userRoles, 'admin');
-      default:
-        return false;
-    }
-  })();
+  // Define tab access requirements
+  const tabAccessMap: Record<string, UserRole[]> = {
+    dashboard: ['admin', 'collector', 'member'],
+    users: ['admin', 'collector'],
+    financials: ['admin', 'collector'],
+    system: ['admin']
+  };
+
+  const allowedRoles = tabAccessMap[tab];
+  if (!allowedRoles) return false;
+
+  const result = hasAnyRole(userRoles, allowedRoles as UserRole[]);
 
   console.log('[RoleUtils] Tab access check:', {
     tab,
+    allowedRoles,
     hasAccess: result,
     userRoles,
     timestamp: new Date().toISOString()
   });
 
   return result;
+};
+
+export const getDefaultRoute = (userRoles: UserRole[] | null): string => {
+  if (!userRoles?.length) return '/login';
+  if (hasRole(userRoles, 'admin')) return '/system';
+  if (hasRole(userRoles, 'collector')) return '/users';
+  return '/dashboard';
 };
