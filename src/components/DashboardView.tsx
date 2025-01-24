@@ -7,6 +7,7 @@ import PaymentDialog from './members/PaymentDialog';
 import PaymentHistoryTable from './PaymentHistoryTable';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
 const DashboardView = () => {
   const { toast } = useToast();
@@ -21,7 +22,7 @@ const DashboardView = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const { data: memberProfile, isError } = useQuery({
+  const { data: memberProfile, isError, isLoading } = useQuery({
     queryKey: ['memberProfile'],
     queryFn: async () => {
       console.log('Fetching member profile...');
@@ -68,14 +69,41 @@ const DashboardView = () => {
       
       return data;
     },
+    meta: {
+      errorMessage: "Failed to load member profile",
+    }
   });
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-[calc(100vh-16rem)] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-dashboard-accent1" />
+          <p className="text-dashboard-text">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="w-full h-[calc(100vh-16rem)] flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto p-6">
+          <p className="text-dashboard-error text-lg">Unable to load dashboard</p>
+          <p className="text-dashboard-text">Please try refreshing the page or contact support if the issue persists.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full px-2 sm:px-0 pt-[calc(6rem+1px)] lg:pt-[calc(8rem+1px)]">
       <header className="mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-          <h1 className="text-2xl sm:text-3xl font-medium mb-2 sm:mb-0 text-dashboard-softBlue">Dashboard</h1>
-          <div className="flex flex-col items-end">
+          <h1 className="text-2xl sm:text-3xl font-medium mb-2 sm:mb-0 text-dashboard-softBlue animate-fade-in">
+            Dashboard
+          </h1>
+          <div className="flex flex-col items-end animate-fade-in">
             <p className="text-dashboard-accent1 font-medium">
               {format(currentTime, 'EEEE, MMMM do yyyy')}
             </p>
@@ -84,10 +112,10 @@ const DashboardView = () => {
             </p>
           </div>
         </div>
-        <p className="text-dashboard-text">Welcome back!</p>
+        <p className="text-dashboard-text animate-fade-in">Welcome back!</p>
       </header>
       
-      <div className="grid gap-4 sm:gap-6">
+      <div className="grid gap-4 sm:gap-6 animate-fade-in">
         <div className="overflow-hidden">
           <MemberProfileCard memberProfile={memberProfile} />
         </div>
