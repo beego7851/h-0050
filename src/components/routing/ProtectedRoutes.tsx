@@ -17,7 +17,7 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { roleLoading, userRole, userRoles, canAccessTab } = useRoleAccess();
+  const { roleLoading, userRole, userRoles, canAccessTab: roleAccessCheck } = useRoleAccess();
   const { syncRoles } = useRoleSync();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -36,11 +36,11 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
     console.log('Path changed, updating active tab:', {
       path: location.pathname,
       newTab,
-      canAccess: canAccessTab(userRoles, newTab),
+      canAccess: canAccessTab(newTab, userRoles),
       userRole
     });
     
-    if (!canAccessTab(userRoles, newTab)) {
+    if (!canAccessTab(newTab, userRoles)) {
       console.log('User cannot access tab:', newTab);
       const defaultRoute = getDefaultRoute(userRoles);
       toast({
@@ -53,7 +53,7 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
     }
     
     setActiveTab(newTab);
-  }, [location.pathname, canAccessTab, navigate, userRoles, userRole, toast]);
+  }, [location.pathname, navigate, userRoles, userRole, toast]);
 
   useEffect(() => {
     let mounted = true;
@@ -133,7 +133,7 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
 
   // If user has no access to current route, redirect to default route
   const currentTab = pathToTab(location.pathname);
-  if (!canAccessTab(userRoles, currentTab)) {
+  if (!canAccessTab(currentTab, userRoles)) {
     const defaultRoute = getDefaultRoute(userRoles);
     return <Navigate to={defaultRoute} replace />;
   }
@@ -144,7 +144,7 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
       isSidebarOpen={isSidebarOpen}
       onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       onTabChange={(tab) => {
-        if (!canAccessTab(userRoles, tab)) {
+        if (!canAccessTab(tab, userRoles)) {
           toast({
             title: "Access Denied",
             description: "You don't have permission to access this section.",

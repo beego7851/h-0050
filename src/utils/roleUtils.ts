@@ -20,16 +20,20 @@ export const hasAnyRole = (userRoles: UserRole[] | null, roles: UserRole[]): boo
   return roles.some(role => hasRole(userRoles, role));
 };
 
-export const canAccessTab = (userRoles: UserRole[] | null, tab: string): boolean => {
-  if (!userRoles) return false;
+type TabAccessConfig = {
+  [key: string]: UserRole[];
+};
 
-  // Define tab access requirements
-  const tabAccessMap: Record<string, UserRole[]> = {
-    dashboard: ['admin', 'collector', 'member'],
-    users: ['admin', 'collector'],
-    financials: ['admin', 'collector'],
-    system: ['admin']
-  };
+const tabAccessMap: TabAccessConfig = {
+  dashboard: ['admin', 'collector', 'member'],
+  users: ['admin', 'collector'],
+  financials: ['admin', 'collector'],
+  system: ['admin'],
+  audit: ['admin']
+};
+
+export const canAccessTab = (tab: string, userRoles: UserRole[] | null): boolean => {
+  if (!userRoles) return false;
 
   const allowedRoles = tabAccessMap[tab];
   if (!allowedRoles) return false;
