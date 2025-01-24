@@ -1,0 +1,8 @@
+project_id = "trzaeinxlytyqxptkuyj"
+
+[api]
+enabled = true
+schemas = ["public", "storage", "graphql_public"]
+
+[functions.cleanup-tokens]
+verify_jwt = true
