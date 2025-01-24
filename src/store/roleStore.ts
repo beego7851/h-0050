@@ -35,7 +35,14 @@ export const useRoleStore = create<RoleState>((set) => ({
     canManageCollectors: false,
   },
   setUserRole: (role) => set({ userRole: role }),
-  setUserRoles: (roles) => set({ userRoles: roles }),
+  setUserRoles: (roles) => {
+    set({ userRoles: roles });
+    if (roles) {
+      set({
+        permissions: mapRolesToPermissions(roles)
+      });
+    }
+  },
   setIsLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   setPermissions: (permissions) => set({ permissions }),
