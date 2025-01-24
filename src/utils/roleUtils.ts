@@ -17,6 +17,12 @@ export const hasRole = (userRoles: UserRole[] | null, role: UserRole): boolean =
 };
 
 export const hasAnyRole = (userRoles: UserRole[] | null, roles: UserRole[]): boolean => {
+  if (!userRoles) return false;
+  console.log('[RoleUtils] Checking multiple roles:', {
+    roles,
+    userRoles,
+    timestamp: new Date().toISOString()
+  });
   return roles.some(role => hasRole(userRoles, role));
 };
 
@@ -33,12 +39,18 @@ const tabAccessMap: TabAccessConfig = {
 };
 
 export const canAccessTab = (tab: string, userRoles: UserRole[] | null): boolean => {
-  if (!userRoles) return false;
+  if (!userRoles) {
+    console.log('[RoleUtils] No user roles available');
+    return false;
+  }
 
   const allowedRoles = tabAccessMap[tab];
-  if (!allowedRoles) return false;
+  if (!allowedRoles) {
+    console.log('[RoleUtils] No allowed roles defined for tab:', tab);
+    return false;
+  }
 
-  const result = hasAnyRole(userRoles, allowedRoles as UserRole[]);
+  const result = hasAnyRole(userRoles, allowedRoles);
 
   console.log('[RoleUtils] Tab access check:', {
     tab,
@@ -52,8 +64,21 @@ export const canAccessTab = (tab: string, userRoles: UserRole[] | null): boolean
 };
 
 export const getDefaultRoute = (userRoles: UserRole[] | null): string => {
-  if (!userRoles?.length) return '/login';
-  if (hasRole(userRoles, 'admin')) return '/system';
-  if (hasRole(userRoles, 'collector')) return '/users';
+  if (!userRoles?.length) {
+    console.log('[RoleUtils] No roles available, redirecting to login');
+    return '/login';
+  }
+  
+  if (hasRole(userRoles, 'admin')) {
+    console.log('[RoleUtils] Admin role detected, redirecting to system');
+    return '/system';
+  }
+  
+  if (hasRole(userRoles, 'collector')) {
+    console.log('[RoleUtils] Collector role detected, redirecting to users');
+    return '/users';
+  }
+  
+  console.log('[RoleUtils] Default member role, redirecting to dashboard');
   return '/dashboard';
 };

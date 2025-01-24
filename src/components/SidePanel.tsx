@@ -14,7 +14,7 @@ interface SidePanelProps {
 
 const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
   const { session, handleSignOut } = useAuthSession();
-  const { userRole, userRoles, roleLoading, hasRole } = useRoleAccess();
+  const { userRole, userRoles, roleLoading } = useRoleAccess();
   const { toast } = useToast();
 
   const prevUserRoleRef = useRef(userRole);
@@ -25,14 +25,14 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
 
   useEffect(() => {
     if (!hasSession) {
-      console.log('No active session, access will be restricted');
+      console.log('[SidePanel] No active session, access will be restricted');
       return;
     }
 
     if (prevUserRoleRef.current !== userRole || 
         prevUserRolesRef.current !== userRoles || 
         prevTabRef.current !== currentTab) {
-      console.log('SidePanel session state:', {
+      console.log('[SidePanel] Session state:', {
         hasSession,
         userRole,
         userRoles,
@@ -71,7 +71,7 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
 
   const visibleNavigationItems = useMemo(() => {
     if (!hasSession || roleLoading) {
-      console.log('Session or roles not ready:', {
+      console.log('[SidePanel] Session or roles not ready:', {
         hasSession,
         roleLoading,
         userRoles
@@ -87,22 +87,35 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
   }, [navigationItems, roleLoading, userRoles, hasSession]);
 
   const handleTabChange = useCallback((tab: string) => {
-    console.log('Tab change requested:', {
+    console.log('[SidePanel] Tab change requested:', {
       currentTab,
       newTab: tab,
       userRoles,
       timestamp: new Date().toISOString()
     });
 
+    if (!userRoles?.length) {
+      toast({
+        title: "Access Denied",
+        description: "Please wait while your permissions are being loaded.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     onTabChange(tab);
-  }, [onTabChange, userRoles, currentTab]);
+  }, [onTabChange, userRoles, currentTab, toast]);
 
   const handleLogoutClick = useCallback(async () => {
-    console.log('Logout initiated');
+    console.log('[SidePanel] Logout initiated');
     try {
       await handleSignOut(false);
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('[SidePanel] Logout error:', error);
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
@@ -136,7 +149,11 @@ const SidePanel = memo(({ currentTab, onTabChange }: SidePanelProps) => {
       <div className="p-4 border-t border-dashboard-cardBorder space-y-4">
         <Button
           variant="outline"
-          className="w-full justify-start bg-[#9b87f5] hover:bg-[#7E69AB] text-white"
+          className={cn(
+            "w-full justify-start",
+            "bg-[#9b87f5] hover:bg-[#7E69AB]",
+            "text-white transition-colors"
+          )}
           onClick={handleLogoutClick}
         >
           Sign Out
