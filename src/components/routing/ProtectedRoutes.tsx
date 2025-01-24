@@ -63,8 +63,8 @@ const ProtectedRoutes = ({ session }: ProtectedRoutesProps) => {
         }
 
         if (mounted) {
-          // Pass the session user ID to syncRoles
-          await syncRoles(session.user.id, true);
+          // Pass just the user ID to syncRoles
+          await syncRoles(session.user.id);
           setIsAuthChecking(false);
           setIsInitialLoad(false);
         }

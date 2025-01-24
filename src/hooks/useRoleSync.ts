@@ -42,17 +42,15 @@ export const useRoleSync = () => {
 
   // Mutation to sync roles
   const { mutate: syncRoles } = useMutation({
-    mutationFn: async (roles: UserRole[]) => {
-      console.log('Starting role sync mutation...', roles);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+    mutationFn: async (userId: string) => {
+      console.log('Starting role sync mutation for user:', userId);
 
       // First, log the role change
       const { error: auditError } = await supabase.from('audit_logs').insert({
-        user_id: user.id,
+        user_id: userId,
         operation: 'update',
         table_name: 'user_roles',
-        new_values: { roles },
+        new_values: { sync_initiated: true },
         severity: 'info'
       });
 
